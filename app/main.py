@@ -1,6 +1,6 @@
 """ForecastBench API: serves precomputed, recalibrated forecasts and the benchmark results.
 
-No model runs at request time, which keeps Cloud Run cheap and fast.
+No model runs at request time.
 """
 import json
 import math

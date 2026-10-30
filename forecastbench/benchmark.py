@@ -1,6 +1,6 @@
 """Run ForecastBench.
 
-  python -m forecastbench.benchmark --task 0     one origin (Slurm array task). Tasks 0..2 = test origins, 3 = serve origin
+  python -m forecastbench.benchmark --task 0     one origin only (0-2 = backtest origins, 3 = serve origin)
   python -m forecastbench.benchmark --aggregate  leaderboard + quality gate from the finished tasks
   python -m forecastbench.benchmark              everything, one after another
   add --quick for a 300-series, 1-origin smoke test (writes to artifacts_quick/)
@@ -229,8 +229,6 @@ def aggregate(cfg, config_path):
     lb["beats_baseline"] = lb["wrmsse"] < base
     lb["coverage_ok"] = lb["coverage_cal"].between(lo, hi)
     lb["promoted"] = lb["beats_baseline"] & lb["coverage_ok"]
-    vcpus = cfg["models"]["lightgbm"]["params"]["num_threads"]
-    lb["usd_per_1k"] = lb["sec_per_1k"] * vcpus * cfg["cost"]["usd_per_vcpu_second"]
     lb = lb.sort_values("wrmsse").reset_index()
 
     by_level = levels.drop(columns="origin").groupby(["model", "level"]).mean().reset_index()
@@ -249,8 +247,7 @@ def aggregate(cfg, config_path):
     manifest = {"created": time.strftime("%Y-%m-%d %H:%M:%S"), "config_file": str(config_path), "config": cfg,
                 "data_sha256": {f: sha256(raw_dir / f) for f in
                                 ["sales_train_evaluation.csv", "calendar.csv", "sell_prices.csv"]},
-                "versions": versions, "python": platform.python_version(), "host": platform.node(),
-                "cost_note": f"usd_per_1k = sec_per_1k x {vcpus} vCPUs x config price; GPU time not priced"}
+                "versions": versions, "python": platform.python_version()}
     json.dump(manifest, open(out / "manifest.json", "w"), indent=2, default=str)
 
     serve = out / "serve"
@@ -262,7 +259,7 @@ def aggregate(cfg, config_path):
               open(serve / "benchmark.json", "w"), default=str)
     pd.set_option("display.width", 200)
     print(lb[["model", "wrmsse", "mase", "scaled_pinball", "coverage_raw", "coverage_cal",
-              "sec_per_1k", "usd_per_1k", "promoted"]].round(4).to_string(index=False))
+              "sec_per_1k", "promoted"]].round(4).to_string(index=False))
 
 
 def main():

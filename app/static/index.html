@@ -66,13 +66,13 @@ function getJSON(u) { return fetch(u).then(function (r) { if (!r.ok) throw new E
 function loadBench() {
   return getJSON("/api/benchmark").then(function (b) {
     var h = "<table><tr><th>Model</th><th>WRMSSE</th><th>MASE</th><th>Scaled pinball</th>" +
-      "<th>80% coverage, raw</th><th>80% coverage, recalibrated</th><th>sec / 1k forecasts</th><th>$ / 1k</th><th>Gate</th></tr>";
+      "<th>80% coverage, raw</th><th>80% coverage, recalibrated</th><th>Runtime (s / 1k series)</th><th>Gate</th></tr>";
     b.leaderboard.forEach(function (r) {
       var cls = r.promoted ? "ok" : (r.model === b.gate.baseline ? "base" : "no");
       var lab = r.promoted ? "promoted" : (r.model === b.gate.baseline ? "baseline" : "not promoted");
       h += "<tr><td>" + name(r.model) + "</td><td>" + fmt(r.wrmsse, 3) + "</td><td>" + fmt(r.mase, 3) + "</td><td>" +
         fmt(r.scaled_pinball, 3) + "</td><td>" + pct(r.coverage_raw) + "</td><td>" + pct(r.coverage_cal) + "</td><td>" +
-        fmt(r.sec_per_1k, 2) + "</td><td>" + fmt(r.usd_per_1k, 5) + "</td><td><span class='badge " + cls + "'>" + lab + "</span></td></tr>";
+        fmt(r.sec_per_1k, 2) + "</td><td><span class='badge " + cls + "'>" + lab + "</span></td></tr>";
     });
     el("lb").innerHTML = h + "</table>";
     el("gate").textContent = "Gate: a model is promoted only if it beats " + name(b.gate.baseline) +

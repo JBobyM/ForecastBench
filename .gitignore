@@ -7,3 +7,6 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 .venv/
+*.sbatch
+submit.sh
+setup_env.sh

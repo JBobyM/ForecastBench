@@ -1,4 +1,4 @@
-# ForecastBench: the frozen benchmark definition. Change it and you have a different benchmark.
+# The benchmark definition. Change anything here and it is a different benchmark.
 seed: 42
 output_dir: artifacts
 
@@ -45,7 +45,7 @@ models:
       num_threads: 16
   chronos:
     model_id: amazon/chronos-bolt-small
-    device: cpu                      # Bolt-small is fast on 16 CPUs; keeps all 4 tasks parallel (MI210: "cuda")
+    device: cpu                      # or cuda
     batch_size: 256
     context_days: 512
 
@@ -59,7 +59,3 @@ routing:                             # fixed before looking at test results
 gate:
   baseline: seasonal_naive
   coverage_band: [0.75, 0.85]
-
-cost:
-  # Compute price used for "usd_per_1k". Check https://cloud.google.com/run/pricing before quoting it.
-  usd_per_vcpu_second: 0.000024

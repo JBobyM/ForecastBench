@@ -13,7 +13,7 @@ def load(cfg):
         import torch
         from chronos import BaseChronosPipeline
         if cfg["device"] == "cpu":
-            torch.set_num_threads(int(os.environ.get("SLURM_CPUS_PER_TASK", os.cpu_count())))
+            torch.set_num_threads(len(os.sched_getaffinity(0)))
         _PIPES[key] = BaseChronosPipeline.from_pretrained(cfg["model_id"], device_map=cfg["device"],
                                                           torch_dtype=torch.float32)
     return _PIPES[key]

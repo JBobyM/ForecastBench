@@ -74,9 +74,6 @@
         0.75,
         0.85
       ]
-    },
-    "cost": {
-      "usd_per_vcpu_second": 2.4e-05
     }
   },
   "data_sha256": {
@@ -92,7 +89,5 @@
     "chronos-forecasting": "2.3.2",
     "scipy": "1.17.1"
   },
-  "python": "3.12.3",
-  "host": "rap-p101",
-  "cost_note": "usd_per_1k = sec_per_1k x 16 vCPUs x config price; GPU time not priced"
+  "python": "3.12.3"
 }
