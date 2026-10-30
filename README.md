@@ -44,6 +44,44 @@ Per-level and per-segment numbers are in `artifacts/`.
 
 Everything that defines the benchmark is in `configs/benchmark.yaml`.
 
+## The math
+
+**Demand segments.** For each series, over the last 365 days since its first sale:
+
+$$\text{ADI} = \frac{n}{n_{+}}, \qquad \text{CV}^2 = \left(\frac{\sigma_{+}}{\mu_{+}}\right)^2$$
+
+where $n$ is the number of days, $n_{+}$ the number of days with a sale, and $\mu_{+}, \sigma_{+}$ the mean and standard deviation of the non-zero sales. The cutoffs are ADI = 1.32 and CV² = 0.49. A series with fewer than 120 days since its first sale counts as new.
+
+**TSB.** It tracks the chance of a sale $p_t$ and the typical sale size $z_t$ separately, with $\alpha = \beta = 0.1$:
+
+$$p_t = p_{t-1} + \beta\left(\mathbb{1}[y_t > 0] - p_{t-1}\right), \qquad z_t = z_{t-1} + \alpha\,(y_t - z_{t-1}) \ \text{ when } y_t > 0, \qquad \hat y = p_T\, z_T$$
+
+**Point accuracy (WRMSSE).** For a series with history $y_1, \dots, y_T$ (from its first sale) and an $h = 28$ day forecast:
+
+$$\text{RMSSE}_i = \sqrt{\frac{\frac{1}{h}\sum_{k=1}^{h}\left(y_{T+k} - \hat y_{T+k}\right)^2}{\frac{1}{T-1}\sum_{t=2}^{T}\left(y_t - y_{t-1}\right)^2}}, \qquad \text{WRMSSE} = \frac{1}{L}\sum_{\ell=1}^{L}\ \sum_{i \in \ell} w_i\,\text{RMSSE}_i$$
+
+with $L = 9$ hierarchy levels and $w_i$ the series' share of its level's dollar sales over the last 28 days. MASE is the same idea with absolute errors.
+
+**Quantile accuracy (scaled pinball).** For $q \in \lbrace 0.1, 0.5, 0.9 \rbrace$ and the scale $s_i = \frac{1}{T-1}\sum_{t=2}^{T}|y_t - y_{t-1}|$:
+
+$$\rho_q(u) = \max\left(q\,u,\ (q-1)\,u\right), \qquad \text{Pinball}_i = \frac{1}{s_i} \cdot \frac{1}{3h}\sum_{q}\sum_{k=1}^{h}\rho_q\left(y_{T+k} - \hat q_{T+k}\right)$$
+
+**Conformal recalibration.** On the 28 days just before the forecast date, every raw interval $[\ell, u]$ gets a score for how far the truth fell outside it:
+
+$$E = \frac{\max\left(\ell - y,\ y - u\right)}{s_i}$$
+
+Pooling the $n$ scores within a segment, $\hat Q$ is the $\lceil (n+1)(1-\alpha) \rceil$-th smallest one, with $\alpha = 0.2$. The recalibrated interval is
+
+$$\left[\ \max\left(0,\ \ell - \hat Q\, s_i\right),\ \ u + \hat Q\, s_i\ \right]$$
+
+which covers about 80% of new data as long as the calibration window behaves like the test window.
+
+**Hierarchy.** With $S_\ell$ the 0/1 matrix that sums item-stores into level $\ell$, the forecasts at each level are $\hat{\mathbf y}_\ell = S_\ell\, \hat{\mathbf y}_{\text{item-store}}$, so stores, states and the total always add up. Each level gets its own interval width from the scores $|y - \hat y| / s$.
+
+**Quality gate.**
+
+$$\text{promoted} \iff \text{WRMSSE}_m < \text{WRMSSE}_{\text{naive}} \ \ \text{and}\ \ 0.75 \le \text{coverage}_m \le 0.85$$
+
 ## Run it
 
 Download the data from [Kaggle](https://www.kaggle.com/competitions/m5-forecasting-accuracy/data) and put `sales_train_evaluation.csv`, `calendar.csv` and `sell_prices.csv` in `data/raw/`.
