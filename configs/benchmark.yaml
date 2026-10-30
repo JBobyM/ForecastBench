@@ -45,7 +45,7 @@ models:
       num_threads: 16
   chronos:
     model_id: amazon/chronos-bolt-small
-    device: cuda                     # ROCm exposes the MI210 as "cuda"; set to cpu if the GPU check fails
+    device: cpu                      # Bolt-small is fast on 16 CPUs; keeps all 4 tasks parallel (MI210: "cuda")
     batch_size: 256
     context_days: 512
 
