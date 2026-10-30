@@ -1,0 +1,5 @@
+# Serving image only: reads precomputed forecasts, no ML libraries needed
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pandas>=2.0
+pyarrow>=15

@@ -1,0 +1,11 @@
+# Benchmark environment (~/ml_env on ganymede; torch comes from /opt/venv_torch)
+numpy
+pandas>=2.0
+scipy
+pyarrow
+pyyaml
+lightgbm>=4.3,<5
+chronos-forecasting==2.3.2
+accelerate>=1.1
+fastapi
+uvicorn

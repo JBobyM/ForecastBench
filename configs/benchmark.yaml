@@ -1,0 +1,65 @@
+# ForecastBench: the frozen benchmark definition. Change it and you have a different benchmark.
+seed: 42
+output_dir: artifacts
+
+data:
+  raw_dir: data/raw
+  category: FOODS            # one M5 category
+  n_series: 2500             # top item-stores by unit sales over the last 365 days
+  n_cold_start_extra: 300    # plus the top series that launched in the last 365 days
+  min_history_days: 14       # a series is forecast at an origin only if it has sold for this long
+
+segments:                    # Syntetos-Boylan classes, computed at each origin
+  window_days: 365
+  cold_start_days: 120       # fewer days since first sale than this = cold start (fixed definition)
+  adi_cut: 1.32
+  cv2_cut: 0.49
+
+backtest:
+  horizon: 28
+  test_origins: [1857, 1885, 1913]   # last observed day; test window = next 28 days
+  serve_origin: 1941                 # last day of M5 data; forecasts d_1942-d_1969 for the API
+  # each origin is calibrated on the 28 days that end at the origin (never on its test window)
+
+quantiles: [0.1, 0.5, 0.9]
+interval_alpha: 0.2                  # 80% intervals
+
+models:
+  classical:
+    window: 365
+    resid_window: 182
+    tsb_alpha: 0.1
+    tsb_beta: 0.1
+    croston_alpha: 0.1
+  lightgbm:
+    train_days: 548
+    num_boost_round: 300
+    tweedie_power: 1.1
+    params:
+      learning_rate: 0.05
+      num_leaves: 127
+      min_data_in_leaf: 100
+      feature_fraction: 0.8
+      bagging_fraction: 0.8
+      bagging_freq: 1
+      num_threads: 16
+  chronos:
+    model_id: amazon/chronos-bolt-small
+    device: cuda                     # ROCm exposes the MI210 as "cuda"; set to cpu if the GPU check fails
+    batch_size: 256
+    context_days: 512
+
+routing:                             # fixed before looking at test results
+  cold_start: chronos
+  intermittent: tsb
+  lumpy: tsb
+  smooth: lightgbm
+  erratic: lightgbm
+
+gate:
+  baseline: seasonal_naive
+  coverage_band: [0.75, 0.85]
+
+cost:
+  # Compute price used for "usd_per_1k". Check https://cloud.google.com/run/pricing before quoting it.
+  usd_per_vcpu_second: 0.000024
