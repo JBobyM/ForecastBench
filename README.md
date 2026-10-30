@@ -31,7 +31,26 @@ The benchmark is the product. Every model is scored the same way, on the same se
 
 ## Results
 
-Run the benchmark, then paste artifacts/leaderboard.csv here.
+Full run, 3 origins x 28 days, about 2,530 series per origin. Lower is better for every metric except coverage (target 80%).
+
+| Model | WRMSSE | MASE | Scaled pinball | 80% coverage raw | 80% coverage recalibrated | sec / 1k forecasts | Gate |
+|---|---|---|---|---|---|---|---|
+| LightGBM (global) | **0.650** | 1.020 | **0.323** | 78.0% | 80.7% | 21.3 | promoted |
+| Routed system | 0.731 | 1.027 | 0.332 | 76.8% | 80.5% | 14.2 | promoted |
+| Chronos-Bolt (zero-shot) | 0.949 | **1.008** | 0.328 | 79.5% | 80.4% | 3.5 | promoted |
+| Seasonal naive (baseline) | 0.977 | 1.249 | 0.402 | 80.2% | 81.4% | 0.04 | baseline |
+| TSB | 1.071 | 1.040 | 0.339 | 74.9% | 80.1% | 0.05 | not promoted |
+| Croston-SBA | 1.075 | 1.086 | 0.346 | 78.0% | 80.3% | 0.05 | not promoted |
+
+What it shows:
+
+- **LightGBM wins** with 33% lower WRMSSE than seasonal naive, and it's the best model on intermittent and lumpy series too.
+- **Chronos-Bolt, with no training on M5, passes the gate** at a sixth of LightGBM's compute. It's the best model on smooth (0.826 vs 0.830) and erratic (0.988 vs 0.998) series, but loses at the aggregate levels.
+- **The fixed routing rule loses to LightGBM alone** (0.731 vs 0.650). Sending intermittent and lumpy series to TSB costs accuracy (1.067 vs 1.014, 1.034 vs 0.971). The cold-start route is right: Chronos beats LightGBM there (0.739 vs 0.768).
+- **Conformal recalibration puts every model at 80.1% to 81.4% coverage**, inside the gate band, so the gate decides on accuracy.
+- The cold-start slice is small: about 21 series per origin. M5 FOODS has few new item-stores launching in any 4-month window, so treat that row as indicative.
+
+Per-level and per-segment tables: artifacts/by_level.csv, artifacts/by_segment.csv. Run details: artifacts/manifest.json.
 
 ## Run it (uOttawa ganymede)
 
