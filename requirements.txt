@@ -2,7 +2,7 @@
 numpy
 pandas>=2.0
 scipy
-pyarrow
+pyarrow==19.0.1            # pyarrow >= 26 needs NumPy 2; ~/constraints.txt pins NumPy 1.26.4 for torch 2.4
 pyyaml
 lightgbm>=4.3,<5
 chronos-forecasting==2.3.2
