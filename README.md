@@ -21,6 +21,9 @@ Three forecast dates, 28 days ahead each, about 2,530 item-store series. Lower i
 | TSB | 1.071 | 1.040 | 0.339 | 74.9% | 80.1% | 0.05 | no |
 | Croston-SBA | 1.075 | 1.086 | 0.346 | 78.0% | 80.3% | 0.05 | no |
 
+![ForecastBench at a glance](docs/overview.png)
+*ForecastBench at a glance: (A) demand patterns in the data, (B) best model per segment, (C) accuracy at each level of the hierarchy, (D) interval coverage before and after conformal recalibration.*
+
 What I took from it:
 
 - LightGBM wins clearly, 33% better than seasonal naive on WRMSSE. It's also the best on intermittent and lumpy items, which I didn't expect.
