@@ -188,7 +188,7 @@ def run_task(cfg, task):
     origin, evaluate = origins[task], task < len(cfg["backtest"]["test_origins"])
     out = Path(cfg["output_dir"])
     log(f"task {task}: origin {origin} ({'backtest' if evaluate else 'serving'})")
-    data = load_m5(**cfg["data"])
+    data = load_m5(**cfg["data"], origins=origins, cold_start_days=cfg["segments"]["cold_start_days"])
     log(f"loaded {len(data.meta)} series")
     test, raw, results = run_origin(data, cfg, origin, evaluate)
     if not evaluate:

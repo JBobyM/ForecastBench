@@ -23,7 +23,7 @@ The benchmark is the product. Every model is scored the same way, on the same se
 
 ## Protocol (frozen in configs/benchmark.yaml)
 
-- Data: M5 FOODS category, top 2,500 item-stores by unit sales over the last year, plus the top 300 that launched in the last year (so cold starts are actually represented).
+- Data: M5 FOODS category, top 2,500 item-stores by unit sales over the last year, plus 300 series that are cold starts at one of the origins, split evenly across origins and ranked by sales up to that origin, so every backtest has a real cold-start slice.
 - Backtest: 3 rolling origins (d_1857, d_1885, d_1913), 28-day horizon each.
 - Metrics: WRMSSE overall and by level, MASE, scaled pinball loss, raw and recalibrated 80% coverage, interval width, seconds and dollars per 1,000 forecasts. Every metric is also reported per segment, with cold start as its own slice.
 - WRMSSE weights are recomputed for this subset, so the scores are **not** comparable to the M5 Kaggle leaderboard.

@@ -4,6 +4,7 @@ import os
 import numpy as np
 
 _PIPES = {}
+GRID = [round(0.1 * k, 1) for k in range(1, 10)]   # the quantiles Chronos-Bolt was trained on
 
 
 def load(cfg):
@@ -23,11 +24,13 @@ def forecast(data, idx, origin, h, qs, cfg):
     pipe = load(cfg)
     ctx = [torch.tensor(np.nan_to_num(data.Y[i, max(data.first_sale[i] - 1, origin - cfg["context_days"]):origin]),
                         dtype=torch.float32) for i in idx]
-    Qs, Ms, bs = [], [], cfg["batch_size"]
+    Qs, bs = [], cfg["batch_size"]
     with torch.inference_mode():
         for b in range(0, len(ctx), bs):
-            q, m = pipe.predict_quantiles(ctx[b:b + bs], prediction_length=h, quantile_levels=list(qs))
+            # Bolt's "mean" output is really its median, which biases sums low for skewed counts.
+            # The point forecast is the average of its 9 trained quantiles instead.
+            q, _ = pipe.predict_quantiles(ctx[b:b + bs], prediction_length=h, quantile_levels=GRID)
             Qs.append(q.float().cpu().numpy())
-            Ms.append(m.float().cpu().numpy())
-    Q = np.clip(np.sort(np.concatenate(Qs), axis=2), 0, None)
-    return {"point": np.clip(np.concatenate(Ms), 0, None), "Q": Q}
+    A = np.clip(np.concatenate(Qs), 0, None)
+    Q = np.sort(A[..., [GRID.index(round(x, 1)) for x in qs]], axis=2)
+    return {"point": A.mean(axis=2), "Q": Q}

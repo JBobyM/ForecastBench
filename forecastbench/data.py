@@ -19,7 +19,7 @@ class M5Data:
     codes: dict              # integer codes for categorical features
 
 
-def load_m5(raw_dir, category, n_series, n_cold_start_extra, **_):
+def load_m5(raw_dir, category, n_series, n_cold_start_extra, min_history_days, origins, cold_start_days, **_):
     raw = Path(raw_dir)
     sales = pd.read_csv(raw / "sales_train_evaluation.csv")
     cal = pd.read_csv(raw / "calendar.csv", parse_dates=["date"])
@@ -42,8 +42,15 @@ def load_m5(raw_dir, category, n_series, n_cold_start_extra, **_):
     order = [i for i in np.argsort(-recent) if not never[i]]
     top = order[:n_series]
     top_set = set(top)
-    cold = [i for i in order if first[i] > last_obs - 365 and i not in top_set][:n_cold_start_extra]
-    keep = np.array(sorted(top_set | set(cold)))
+    # Cold starts: series that are new at each origin, so every backtest has a real cold-start slice.
+    # Ranked by sales up to that origin only (no peeking at the test window).
+    taken, per = set(top_set), int(np.ceil(n_cold_start_extra / len(origins)))
+    for o in origins:
+        pre = units[:, :o].sum(axis=1)
+        cand = [i for i in np.argsort(-pre) if not never[i] and i not in taken
+                and o - cold_start_days + 1 < first[i] <= o - min_history_days + 1]
+        taken |= set(cand[:per])
+    keep = np.array(sorted(taken))
 
     sales = sales.iloc[keep].reset_index(drop=True)
     units, first = units[keep], first[keep]

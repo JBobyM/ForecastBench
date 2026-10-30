@@ -6,7 +6,7 @@ data:
   raw_dir: data/raw
   category: FOODS            # one M5 category
   n_series: 2500             # top item-stores by unit sales over the last 365 days
-  n_cold_start_extra: 300    # plus the top series that launched in the last 365 days
+  n_cold_start_extra: 300    # plus series that are cold starts at an origin (split evenly across origins)
   min_history_days: 14       # a series is forecast at an origin only if it has sold for this long
 
 segments:                    # Syntetos-Boylan classes, computed at each origin
