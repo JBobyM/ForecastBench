@@ -4,6 +4,8 @@ A demand-forecasting benchmark on the M5 Walmart data, with a small API that ser
 
 The idea is simple. Every model goes through the same test: same series, same backtest windows, same metrics. A model only gets promoted if it beats a seasonal naive forecast and its 80% prediction intervals actually cover about 80% of what happens.
 
+![Pipeline](docs/pipeline.png)
+
 ## Results
 
 Three forecast dates, 28 days ahead each, about 2,530 item-store series. Lower is better, except coverage (target 80%).
