@@ -2,6 +2,8 @@
 
 A demand-forecasting benchmark on the M5 Walmart data, with a small API that serves the forecasts.
 
+Live demo: https://forecastbench-436839971921.northamerica-northeast1.run.app
+
 The idea is simple. Every model goes through the same test: same series, same backtest windows, same metrics. A model only gets promoted if it beats a seasonal naive forecast and its 80% prediction intervals actually cover about 80% of what happens.
 
 ![Pipeline](docs/pipeline.png)
@@ -15,7 +17,7 @@ Three forecast dates, 28 days ahead each, about 2,530 item-store series. Lower i
 | LightGBM, global | **0.650** | 1.020 | **0.323** | 78.0% | 80.7% | 21.3 | promoted |
 | Routed by segment | 0.731 | 1.027 | 0.332 | 76.8% | 80.5% | 14.2 | promoted |
 | Chronos-Bolt, zero-shot | 0.949 | **1.008** | 0.328 | 79.5% | 80.4% | 3.5 | promoted |
-| Seasonal naive | 0.977 | 1.249 | 0.402 | 80.2% | 81.4% | 0.04 | baseline |
+| Seasonal naive | 0.977 | 1.248 | 0.402 | 80.2% | 81.4% | 0.04 | baseline |
 | TSB | 1.071 | 1.040 | 0.339 | 74.9% | 80.1% | 0.05 | no |
 | Croston-SBA | 1.075 | 1.086 | 0.346 | 78.0% | 80.3% | 0.05 | no |
 
