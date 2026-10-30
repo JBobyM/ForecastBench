@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ForecastBench</title>
+<style>
+body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;margin:0;color:#1d2433;background:#f6f7f9}
+main{max-width:1060px;margin:0 auto;padding:28px 16px 48px}
+h1{margin:0 0 4px;font-size:26px}.sub{color:#5b6475;margin:0 0 22px}
+section{background:#fff;border:1px solid #e3e6eb;border-radius:10px;padding:18px;margin-bottom:18px;overflow-x:auto}
+h2{font-size:17px;margin:0 0 10px}
+table{border-collapse:collapse;width:100%;font-size:13.5px}
+th,td{padding:6px 8px;border-bottom:1px solid #eef0f3;text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}th{color:#5b6475;font-weight:600}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px}
+.ok{background:#e3f4ea;color:#1c7a43}.no{background:#f4e6e6;color:#a23b3b}.base{background:#eceff3;color:#5b6475}
+.note{color:#5b6475;font-size:13px;margin:8px 0 0}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+input,select{font:inherit;padding:6px 8px;border:1px solid #cfd4dc;border-radius:6px;background:#fff}
+input{flex:1;min-width:220px}select#pick{min-width:300px}
+#explain{font-size:14px;line-height:1.55}
+.tag{display:inline-block;background:#eef2fb;color:#2f4b8a;border-radius:6px;padding:1px 7px;margin-right:6px;font-size:12.5px}
+svg text{font-size:11px;fill:#5b6475}
+</style>
+</head>
+<body>
+<main>
+<h1>ForecastBench</h1>
+<p class="sub">A fixed, reproducible demand-forecasting benchmark on the M5 (Walmart) hierarchy, served as a live forecasting API.</p>
+
+<section>
+<h2>Leaderboard</h2>
+<div id="lb">Loading...</div>
+<p class="note" id="gate"></p>
+</section>
+
+<section>
+<h2>Accuracy by demand segment (WRMSSE, lower is better)</h2>
+<div id="seg"></div>
+</section>
+
+<section>
+<h2>Explore a forecast</h2>
+<div class="row">
+<input id="q" placeholder="Search an item or store, e.g. FOODS_3_090 or CA_1">
+<select id="grp">
+<option value="">All segments</option><option value="smooth">Smooth</option><option value="erratic">Erratic</option>
+<option value="intermittent">Intermittent</option><option value="lumpy">Lumpy</option><option value="cold_start">Cold start</option>
+</select>
+<select id="pick"></select>
+</div>
+<svg id="chart" viewBox="0 0 960 300" width="100%"></svg>
+<div id="explain"></div>
+</section>
+</main>
+<script>
+var NAMES = {seasonal_naive: "Seasonal naive", croston_sba: "Croston-SBA", tsb: "TSB",
+  lightgbm: "LightGBM (global, quantile)", chronos: "Chronos-Bolt (zero-shot)", routed: "Routed system"};
+function el(id) { return document.getElementById(id); }
+function fmt(v, d) { return (v === null || v === undefined) ? "-" : Number(v).toFixed(d); }
+function pct(v) { return (v === null || v === undefined) ? "-" : (100 * v).toFixed(1) + "%"; }
+function name(m) { return NAMES[m] || m; }
+function getJSON(u) { return fetch(u).then(function (r) { if (!r.ok) throw new Error(u + " " + r.status); return r.json(); }); }
+
+function loadBench() {
+  return getJSON("/api/benchmark").then(function (b) {
+    var h = "<table><tr><th>Model</th><th>WRMSSE</th><th>MASE</th><th>Scaled pinball</th>" +
+      "<th>80% coverage, raw</th><th>80% coverage, recalibrated</th><th>sec / 1k forecasts</th><th>$ / 1k</th><th>Gate</th></tr>";
+    b.leaderboard.forEach(function (r) {
+      var cls = r.promoted ? "ok" : (r.model === b.gate.baseline ? "base" : "no");
+      var lab = r.promoted ? "promoted" : (r.model === b.gate.baseline ? "baseline" : "not promoted");
+      h += "<tr><td>" + name(r.model) + "</td><td>" + fmt(r.wrmsse, 3) + "</td><td>" + fmt(r.mase, 3) + "</td><td>" +
+        fmt(r.scaled_pinball, 3) + "</td><td>" + pct(r.coverage_raw) + "</td><td>" + pct(r.coverage_cal) + "</td><td>" +
+        fmt(r.sec_per_1k, 2) + "</td><td>" + fmt(r.usd_per_1k, 5) + "</td><td><span class='badge " + cls + "'>" + lab + "</span></td></tr>";
+    });
+    el("lb").innerHTML = h + "</table>";
+    el("gate").textContent = "Gate: a model is promoted only if it beats " + name(b.gate.baseline) +
+      " on WRMSSE and its recalibrated 80% interval coverage lands in [" + (100 * b.gate.coverage_band[0]) + "%, " +
+      (100 * b.gate.coverage_band[1]) + "%]. Averages over 3 rolling origins, 28-day horizon. Intervals are calibrated on the 28 days before each origin, never on the test window.";
+
+    var models = b.leaderboard.map(function (r) { return r.model; });
+    var cell = {};
+    b.by_segment.forEach(function (r) { cell[r.group + "|" + r.model] = r; });
+    var s = "<table><tr><th>Segment</th><th>Series</th>";
+    models.forEach(function (m) { s += "<th>" + name(m) + "</th>"; });
+    s += "</tr>";
+    ["smooth", "erratic", "intermittent", "lumpy", "cold_start"].forEach(function (g) {
+      var ref = cell[g + "|routed"];
+      if (!ref) return;
+      var best = Infinity;
+      models.forEach(function (m) { var r = cell[g + "|" + m]; if (r && r.wrmsse < best) best = r.wrmsse; });
+      s += "<tr><td>" + g.replace("_", " ") + "</td><td>" + Math.round(ref.n_series) + "</td>";
+      models.forEach(function (m) {
+        var r = cell[g + "|" + m];
+        s += "<td" + (r && r.wrmsse === best ? " style='font-weight:700'" : "") + ">" + (r ? fmt(r.wrmsse, 3) : "-") + "</td>";
+      });
+      s += "</tr>";
+    });
+    el("seg").innerHTML = s + "</table><p class='note'>Bold = best model for that segment. Cold start = short sales history at the forecast origin; reported separately, not buried in the average.</p>";
+  });
+}
+
+function draw(d) {
+  var W = 960, H = 300, L = 44, R = 12, T = 14, B = 28;
+  var hist = d.history, fc = d.forecast, o = hist.length, n = o + fc.length;
+  var ymax = 1;
+  hist.forEach(function (p) { ymax = Math.max(ymax, p.y); });
+  fc.forEach(function (f) { ymax = Math.max(ymax, f.hi); });
+  ymax *= 1.08;
+  function X(i) { return L + (W - L - R) * i / (n - 1); }
+  function Y(v) { return T + (H - T - B) * (1 - v / ymax); }
+  var g = "";
+  for (var k = 0; k <= 4; k++) {
+    var v = ymax * k / 4;
+    g += "<line x1='" + L + "' x2='" + (W - R) + "' y1='" + Y(v) + "' y2='" + Y(v) + "' stroke='#eef0f3'/>" +
+      "<text x='" + (L - 6) + "' y='" + (Y(v) + 4) + "' text-anchor='end'>" + (v >= 10 ? Math.round(v) : v.toFixed(1)) + "</text>";
+  }
+  var band = "M";
+  fc.forEach(function (f, i) { band += (i ? " L" : "") + X(o + i) + " " + Y(f.hi); });
+  for (var i = fc.length - 1; i >= 0; i--) band += " L" + X(o + i) + " " + Y(fc[i].lo);
+  g += "<path d='" + band + " Z' fill='#4c6ef5' opacity='0.18'/>";
+  g += "<polyline fill='none' stroke='#1d2433' stroke-width='1.4' points='" +
+    hist.map(function (p, i) { return X(i) + "," + Y(p.y); }).join(" ") + "'/>";
+  g += "<polyline fill='none' stroke='#4c6ef5' stroke-width='2' points='" +
+    fc.map(function (f, i) { return X(o + i) + "," + Y(f.mean); }).join(" ") + "'/>";
+  g += "<line x1='" + X(o - 0.5) + "' x2='" + X(o - 0.5) + "' y1='" + T + "' y2='" + (H - B) + "' stroke='#9aa3b2' stroke-dasharray='4 4'/>";
+  g += "<text x='" + L + "' y='" + (H - 8) + "'>" + hist[0].date + "</text>" +
+    "<text x='" + X(o - 0.5) + "' y='" + (H - 8) + "' text-anchor='middle'>forecast from " + fc[0].date + "</text>" +
+    "<text x='" + (W - R) + "' y='" + (H - 8) + "' text-anchor='end'>" + fc[fc.length - 1].date + "</text>";
+  el("chart").innerHTML = g;
+}
+
+function explain(d) {
+  var h = "<p><span class='tag'>" + d.group.replace("_", " ") + "</span><span class='tag'>served by " + name(d.model) + "</span></p>";
+  h += "<p>" + d.reason + "</p>";
+  if (d.drivers.length) {
+    h += "<p>Top drivers of this forecast: " + d.drivers.map(function (x) { return x.feature + " (" + x.effect + " it)"; }).join(", ") + ".</p>";
+  }
+  var total = d.forecast.reduce(function (a, f) { return a + f.mean; }, 0);
+  h += "<p>Next 28 days: about " + Math.round(total) + " units expected. The shaded band is the recalibrated 80% interval for each day.</p>";
+  el("explain").innerHTML = h;
+}
+
+function show(id) { getJSON("/api/forecast/" + encodeURIComponent(id)).then(function (d) { draw(d); explain(d); }); }
+
+function search() {
+  var u = "/api/series?limit=200&q=" + encodeURIComponent(el("q").value) + "&group=" + encodeURIComponent(el("grp").value);
+  getJSON(u).then(function (list) {
+    el("pick").innerHTML = list.map(function (s) {
+      return "<option value='" + s.id + "'>" + s.id.replace("_evaluation", "") + " | " + name(s.model) + "</option>";
+    }).join("");
+    if (list.length) show(list[0].id);
+  });
+}
+
+var timer = null;
+el("q").addEventListener("input", function () { clearTimeout(timer); timer = setTimeout(search, 250); });
+el("grp").addEventListener("change", search);
+el("pick").addEventListener("change", function (e) { show(e.target.value); });
+loadBench().catch(function (e) { el("lb").textContent = "Could not load results: " + e.message; });
+search();
+</script>
+</body>
+</html>

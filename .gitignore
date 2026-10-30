@@ -1,6 +1,7 @@
 data/
-artifacts/
 logs/
+artifacts_quick/
+artifacts/runs/
 hf_cache/
 __pycache__/
 *.pyc

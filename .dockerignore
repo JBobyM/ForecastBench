@@ -1,0 +1,9 @@
+.git
+data/
+logs/
+artifacts_quick/
+artifacts/runs/
+forecastbench/
+configs/
+__pycache__/
+*.sbatch
